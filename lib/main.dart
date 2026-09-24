@@ -17,15 +17,16 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: .fromSeed(seedColor: Colors.purpleAccent),
       ),
-      home: const TableroTareasPage(title: 'Cosas por hacer'),
+      home: const TableroTareasPage(title: 'Cosas por hacer', description: "Hola que hace",),
     );
   }
 }
 
 class TableroTareasPage extends StatefulWidget {
-  const TableroTareasPage({super.key, required this.title});
 
   final String title;
+  final String description;
+  const TableroTareasPage({super.key, required this.title, required this.description});
 
   @override
   State<TableroTareasPage> createState() => _TableroTareasPageState();
@@ -33,26 +34,29 @@ class TableroTareasPage extends StatefulWidget {
 
 class Tarea {
   String nombre;
+  String descripcion;
   bool estatus;
 
-  Tarea({required this.nombre, this.estatus = false});
+  Tarea({required this.nombre, required this.descripcion, this.estatus = false});
 }
 
 class _TableroTareasPageState extends State<TableroTareasPage> {
-  final List<Tarea> _tareas = [
-    Tarea(nombre: "Tarea uno"),
-    Tarea(nombre: "Tarea dos"),
-    Tarea(nombre: "Tarea tres"),
-    Tarea(nombre: "Tarea cuatro"),
-    Tarea(nombre: "Tarea cinco"),
+  final List<Tarea> _tareasOriginales = [
+    Tarea(nombre: "Tarea uno", descripcion: "Hacer hoy"),
+    Tarea(nombre: "Tarea dos", descripcion: "Ya paso"),
+    Tarea(nombre: "Tarea tres", descripcion: "Terminar"),
+    Tarea(nombre: "Tarea cuatro", descripcion: "Casi casi"),
+    Tarea(nombre: "Tarea cinco", descripcion: "No pues no"),
   ];
 
-  int _tareasCompletas = 0;
+  late List<Tarea> _tareas = _tareasOriginales;
+
+  late int _tareasCompletas = _tareas.where((t) => t.estatus).length;
   bool _soloCompletadas = false;
 
   void _agregarTarea() {
     setState(() {
-      _tareas.add(Tarea(nombre: "Tarea ${_tareas.length + 1}"));
+      _tareas.add(Tarea(nombre: "Tarea ${_tareas.length + 1}", descripcion: "Descripción"));
     });
   }
 
@@ -65,14 +69,14 @@ class _TableroTareasPageState extends State<TableroTareasPage> {
   void _marcarComoCompletada(int index) {
     setState(() {
       _tareas[index].estatus = true;
-      _tareasCompletas = _tareas.where((t) => t.estatus).length;
+      _tareasCompletas;
     });
   }
 
   void _desmarcarTarea(int index){
     setState(() {
       _tareas[index].estatus = false;
-      _tareasCompletas = _tareas.where((t) => t.estatus).length;
+      _tareasCompletas;
     });
   }
 
@@ -81,7 +85,13 @@ class _TableroTareasPageState extends State<TableroTareasPage> {
       for (var i = 0; i < _tareas.length; i++){
         _tareas[i].estatus = false;
       }
-      _tareasCompletas = _tareas.where((t) => t.estatus).length;
+      _tareasCompletas;
+    });
+  }
+
+  void _restablecerTareasOriginales() {
+    setState(() {
+      _tareas = _tareasOriginales;
     });
   }
 
@@ -91,17 +101,32 @@ class _TableroTareasPageState extends State<TableroTareasPage> {
         ? _tareas.where((t) => t.estatus).toList()
         : _tareas;
 
+    final textoTareas = _soloCompletadas
+        ? "Ver todas las tareas" : "Ver tareas completadas";
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         centerTitle: true,
+        toolbarHeight: 150,
         actions: [
-          IconButton(
-            tooltip: "Marcar todas las tareas como no completadas",
-            onPressed: _desmarcarTodas,
-            icon: const Icon(Icons.restart_alt),
-          )
+              Column(
+                spacing: 0,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: "Marcar todas las tareas como no completadas",
+                    onPressed: _desmarcarTodas,
+                    icon: const Icon(Icons.restart_alt),
+                  ),
+                  IconButton(
+                    tooltip: "Restablecer",
+                    onPressed: _restablecerTareasOriginales,
+                    icon: const Icon(Icons.clear),
+                  ),
+                ],
+              )
         ],
       ),
       body: Column(
@@ -112,18 +137,25 @@ class _TableroTareasPageState extends State<TableroTareasPage> {
               children: [
                 Expanded(
                   child: Text(
-                    "Tareas: ${tareasMostradas.where((t) => t.estatus == true).length}",
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                        "Tareas: ${tareasMostradas.where((t) => t.estatus == true).length}",
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                 ),
-                Switch(
-                  value: _soloCompletadas,
-                  onChanged: (value) {
-                    setState(() {
-                      _soloCompletadas = value;
-                    });
-                  },
-                ),
+                Column(
+                  children: [
+                    Text(
+                      textoTareas
+                    ),
+                    Switch(
+                      value: _soloCompletadas,
+                      onChanged: (value) {
+                        setState(() {
+                          _soloCompletadas = value;
+                        });
+                      },
+                    ),
+                  ],
+                )
               ],
             ),
           ),
@@ -136,24 +168,34 @@ class _TableroTareasPageState extends State<TableroTareasPage> {
                 final indexReal = _tareas.indexOf(tarea);
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: CheckboxListTile(
-                    value: tarea.estatus,
-                    onChanged: (value) {
-                      if (value == true) {
-                        _marcarComoCompletada(indexReal);
-                      } else {
-                        _desmarcarTarea(indexReal);
-                      }
-                    },
+                  child: ListTile(
+                    leading: Checkbox(
+                      value: tarea.estatus,
+                      onChanged: (value) {
+                        if (!tarea.estatus) {
+                          _marcarComoCompletada(indexReal);
+                        } else {
+                          _desmarcarTarea(indexReal);
+                        }
+                      },
+                    ),
                     title: Text(
-                      tarea.nombre,
+                          tarea.nombre,
+                          style: TextStyle(
+                            decoration: tarea.estatus
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                          ),
+                    ),
+                    subtitle: Text(
+                      tarea.descripcion,
                       style: TextStyle(
                         decoration: tarea.estatus
                             ? TextDecoration.lineThrough
                             : TextDecoration.none,
                       ),
                     ),
-                    secondary: IconButton(
+                    trailing: IconButton(
                       tooltip: "Eliminar",
                       onPressed: () => _eliminarTarea(indexReal),
                       icon: const Icon(Icons.remove_circle_outline),
@@ -168,7 +210,7 @@ class _TableroTareasPageState extends State<TableroTareasPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _agregarTarea,
         icon: const Icon(Icons.add_circle_outline),
-        label: const Text("Agregar"),
+        label: Text("Agregar"),
       ),
     );
   }
